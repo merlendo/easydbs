@@ -1,0 +1,6 @@
+pytest
+pytest-cov
+sqlalchemy
+psycopg2
+mysqlclient
+pyodbc
