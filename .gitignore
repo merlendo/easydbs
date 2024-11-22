@@ -2,4 +2,5 @@
 .env
 tmp/
 **/__pycache__
-**/config.ini
+**/*.ini
+*.db
