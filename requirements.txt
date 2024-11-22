@@ -1,4 +1,6 @@
+duckdb
+duckdb-engine
 sqlalchemy
 psycopg2
-mysqlclient
+pymysql
 pyodbc

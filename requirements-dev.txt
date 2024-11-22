@@ -1,4 +1,2 @@
 sqlalchemy
-psycopg2
-mysqlclient
 pyodbc
