@@ -4,18 +4,22 @@ import sqlalchemy
 class Engine:
     def __init__(self, db_type: str,
                  database_name: str,
+                 dsn: str | None = None,
                  username: str | None = None,
                  password: str | None = None,
                  host: str | None = None,
                  port: int | None = None):
 
         self.db_type = db_type
-        self.url_object = sqlalchemy.URL.create(self.DBAPI,
-                                                username=username,
-                                                password=password,
-                                                host=host,
-                                                port=port,
-                                                database=database_name)
+        if dsn:
+            self.url_object = dsn
+        else:
+            self.url_object = sqlalchemy.URL.create(self.DBAPI,
+                                                    username=username,
+                                                    password=password,
+                                                    host=host,
+                                                    port=port,
+                                                    database=database_name)
 
     @property
     def DBAPI(self) -> str:

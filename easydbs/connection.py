@@ -1,20 +1,22 @@
 import asyncio
 
-from sqlalchemy import MetaData
+import sqlalchemy
 from sqlalchemy.orm import Session
 
 from .engine import Engine
 
 
 class Connection:
-    def __init__(self, engine, db_type, db_name):
+    def __init__(self, db_type: str, db_name: str, dsn: str, username: str, password: str, host: str, port: int):
         self.id = self._conn_id(db_type, db_name)
         self.db_type = db_type
         self.db_name = db_name
-        self.engine = engine
+        self.dsn = dsn
+        self.engine = Engine(db_type, database_name=db_name, dsn=dsn, username=username,
+                             password=password, host=host, port=port).create()
         self.session = None
-        self.metadata = MetaData()
-        self.metadata.reflect(bind=engine)
+        self.metadata = sqlalchemy.MetaData()
+        self.metadata.reflect(bind=self.engine)
 
     def __repr__(self):
         return f"<Connection(engine={self.engine}, db_type={self.db_type}, db_name={self.db_name})>"
@@ -46,17 +48,17 @@ class Connection:
     def _conn_id(self, db_type: str, db_name: str):
         return f'{db_type}+{db_name}'
 
-    def close():
+    def close(self):
+        self.engine.dispose()
+
+    def commit(self):
         pass
 
-    def commit():
-        pass
-
-    def rollback():
+    def rollback(self):
         pass
 
     def cursor(self):
-        return self.engine.connect()
+        return Cursor()
 
 
 class Cursor():
@@ -115,13 +117,14 @@ class ConnectionManager:
     def add_connection(self,
                        db_type: str,
                        db_name: str,
+                       dsn: str | None = None,
                        username: str | None = None,
                        password: str | None = None,
                        host: str | None = None,
                        port: int | None = None):
-        engine = Engine(db_type, database_name=db_name, username=username,
-                        password=password, host=host, port=port).create()
-        conn = Connection(engine=engine, db_type=db_type, db_name=db_name)
+
+        conn = Connection(db_type=db_type, db_name=db_name, dsn=dsn,
+                          username=username, password=password, host=host, port=port)
         self._connections[conn.id] = conn
         return self._connections[conn.id]
 
