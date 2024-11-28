@@ -1,5 +1,5 @@
 from .config_manager import ConfigManager
-from .connection import ConnectionManager
+from .connection import ConnectionManager, connect
 
 # Global constants for the database module
 

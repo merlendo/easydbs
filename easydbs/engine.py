@@ -2,8 +2,9 @@ import sqlalchemy
 
 
 class Engine:
-    def __init__(self, db_type: str,
-                 database_name: str,
+    def __init__(self,
+                 db_type: str,
+                 database_name: str | None = None,
                  dsn: str | None = None,
                  username: str | None = None,
                  password: str | None = None,
@@ -12,7 +13,9 @@ class Engine:
 
         self.db_type = db_type
         if dsn:
-            self.url_object = dsn
+            self.url_object = sqlalchemy.engine.URL.create(
+                drivername=f"{db_type}+pyodbc", query={"odbc_connect": f"DSN={dsn}"}
+            )
         else:
             self.url_object = sqlalchemy.URL.create(self.DBAPI,
                                                     username=username,

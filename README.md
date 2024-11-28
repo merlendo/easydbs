@@ -2,6 +2,17 @@
 
 ## Basic usage
 ```python
+import easydbs
+
+conn = easydbs.connect('sqlite', 'app.db')
+cursor = conn.cursor()
+result = cursor.execute('SELECT * FROM my_table').fetchall()
+for row in result:
+    print(row)
+```
+
+## Use the connection as a decorator
+```python
 from sqlalchemy import Table, select
 from sqlalchemy.orm import Session
 
