@@ -44,7 +44,7 @@ from sqlalchemy import Table
 
 cm = easydbs.ConnexionManager()
 
-cm.add_connection(db_type='sqllite', database_name= 'app.db')
+cm.add_connection(db_type='sqllite', db_name= 'app.db')
 cm.add_connection(db_type="mssql",
                   database="ma_base_mssql",
                   username="sa",
@@ -68,7 +68,7 @@ import easydbs
 
 cm = easydbs.ConnexionManager()
 
-conn = cm.add_connection(db_type='sqllite', database_name= 'app.db')
+conn = cm.add_connection(db_type='sqllite', db_name= 'app.db')
 df = pd.read_sql('table_name', engine=conn.engine)
 conn.close()
 ```
@@ -80,7 +80,7 @@ import easydbs
 
 cm = easydbs.ConnexionManager()
 
-sqlite_db = cm.add_connection(db_type='sqllite', database_name= 'app.db')
+sqlite_db = cm.add_connection(db_type='sqllite', db_name= 'app.db')
 result = sqlite_db.execute('SELECT * FROM my_table').fetchall()
 for row in result:
     print(row)

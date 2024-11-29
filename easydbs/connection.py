@@ -27,7 +27,7 @@ class Connection:
         self.db_type = db_type
         self.db_name = db_name
         self.dsn = dsn
-        self.engine = Engine(db_type, database_name=db_name, dsn=dsn, username=username,
+        self.engine = Engine(db_type, db_name=db_name, dsn=dsn, username=username,
                              password=password, host=host, port=port).create()
         self.session = None
         self.metadata = sqlalchemy.MetaData()
@@ -90,9 +90,12 @@ class Connection:
 class Cursor:
     def __init__(self, engine: sqlalchemy.engine.Engine):
         self.engine = engine
-        self.description = None
-        self.rowcount = None
         self.cursor = self._cursor()
+        self.rowcount = self.cursor.rowcount
+        self.description = self.cursor.description
+
+    def __repr__(self):
+        return f"<{self.__class__.__module__}.{self.__class__.__qualname__} object at {hex(id(self))} @alias {self.cursor.__repr__().strip('<>')}>"
 
     def _cursor(self):
         with self.engine.connect() as connection:
@@ -102,51 +105,46 @@ class Cursor:
 
     def callproc(self, procname, **parameters):
         """Not implemented, could execute a stored procedure."""
-        pass
+        return self.cursor.callproc(procname, parameters)
 
     def close(self):
-        self.cursor.close()
+        return self.cursor.close()
 
-    def execute(self, operation, parameters=None):
+    def execute(self, operation, parameters=[]):
         """Executes a single operation with the provided parameters."""
-        with self.engine.connect() as connection:
-            result = connection.execute(operation, parameters)
-        return result
+        return self.cursor.execute(operation, parameters)
 
     def executemany(self, operation, seq_parameters):
         """Executes the same operation with a sequence of parameters."""
-        with self.engine.connect() as connection:
-            result = connection.executemany(operation, seq_parameters)
-        return result
+        return self.cursor.executemany(operation, seq_parameters)
 
     def fetchone(self):
         """Fetches the next row of a query result set."""
-        pass
+        return self.cursor.fetchone()
 
     def fetchmany(self, size):
         """Fetches the next set of `size` rows of a query result."""
-        pass
+        return self.cursor.fetchmany(size)
 
     def fetchall(self):
         """Fetches all rows of a query result."""
-        pass
+        return self.cursor.fetchall()
 
     def nextset(self):
         """Moves to the next result set in a multi-query execution."""
-        pass
+        return self.cursor.nextset()
 
-    @property
     def arraysize(self):
         """Gets/sets the number of rows to fetch at once."""
         return self.rowcount
 
     def setinputsizes(self, sizes):
         """Sets the input sizes for the query parameters."""
-        pass
+        return self.cursor.setinputsizes(sizes)
 
-    def setoutputsize(self, size, columns=None):
+    def setoutputsize(self, size, column=None):
         """Sets the output size for columns."""
-        pass
+        return self.cursor.setoutputsize(size, column)
 
 
 class _ConnectionManager:
@@ -162,7 +160,14 @@ class _ConnectionManager:
     def __init__(self):
         pass
 
-    def add_connection(self, db_type: str, db_name: str, dsn: str, username: str, password: str, host: str, port: int):
+    def add_connection(self,
+                       db_type: str,
+                       db_name: str | None = None,
+                       dsn: str | None = None,
+                       username: str | None = None,
+                       password: str | None = None,
+                       host: str | None = None,
+                       port: int | None = None):
         conn = Connection(db_type=db_type, db_name=db_name, dsn=dsn,
                           username=username, password=password, host=host, port=port)
         self._connections[conn.id] = conn

@@ -4,7 +4,7 @@ import sqlalchemy
 class Engine:
     def __init__(self,
                  db_type: str,
-                 database_name: str | None = None,
+                 db_name: str | None = None,
                  dsn: str | None = None,
                  username: str | None = None,
                  password: str | None = None,
@@ -22,7 +22,7 @@ class Engine:
                                                     password=password,
                                                     host=host,
                                                     port=port,
-                                                    database=database_name)
+                                                    database=db_name)
 
     @property
     def DBAPI(self) -> str:
