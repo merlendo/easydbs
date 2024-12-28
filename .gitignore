@@ -4,3 +4,4 @@ tmp/
 **/__pycache__
 **/*.ini
 *.db
+.DS_Store
