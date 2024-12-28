@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 
 import sqlalchemy
@@ -12,7 +13,7 @@ def connect(db_type: str,
             username: str | None = None,
             password: str | None = None,
             host: str | None = None,
-            port: int | None = None):
+            port: int | None = None) -> Connection:
     cm = ConnectionManager()
     return cm.add_connection(db_type=db_type, db_name=db_name, dsn=dsn,
                              username=username, password=password, host=host, port=port)
@@ -40,24 +41,24 @@ class Connection:
         """Decorator to manage sessions for both sync and async functions."""
         if asyncio.iscoroutinefunction(func):
             async def async_wrapped(*args, **kwargs):
-                self.session = Session(self.engine)
-                print(f"[{self.id}] - Creating session for {func.__name__}")
+                cursor = self.cursor()
+                print(f"[{self.id}] - Creating cursor for {func.__name__}")
                 try:
-                    result = await func(self.session, *args, **kwargs)
+                    result = await func(cursor, *args, **kwargs)
                 finally:
-                    self.session.close()
-                print(f"[{self.id}] - Closing session for {func.__name__}")
+                    cursor.close()
+                print(f"[{self.id}] - Closing cursor for {func.__name__}")
                 return result
             return async_wrapped
         else:
             def sync_wrapped(*args, **kwargs):
-                self.session = Session(self.engine)
-                print(f"[{self.id}] - Creating session for {func.__name__}")
+                cursor = self.cursor()
+                print(f"[{self.id}] - Creating cursor for {func.__name__}")
                 try:
-                    result = func(self.session, *args, **kwargs)
+                    result = func(cursor, *args, **kwargs)
                 finally:
-                    self.session.close()
-                print(f"[{self.id}] - Closing session for {func.__name__}")
+                    cursor.close()
+                print(f"[{self.id}] - Closing cursor for {func.__name__}")
                 return result
             return sync_wrapped
 
@@ -82,7 +83,7 @@ class Connection:
         if self.session:
             self.session.rollback()
 
-    def cursor(self):
+    def cursor(self) -> Cursor:
         """Returns a Cursor object."""
         return Cursor(self.engine)
 
@@ -177,6 +178,7 @@ class _ConnectionManager:
         """Returns all the stored connections."""
         for conn in self._connections.values():
             yield conn
+    
 
 
 def ConnectionManager():
