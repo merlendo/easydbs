@@ -5,4 +5,5 @@ tmp/
 **/*.ini
 *.db
 .DS_Store
+.pytest_cache
 .coverage
