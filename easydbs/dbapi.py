@@ -1,8 +1,12 @@
 from __future__ import annotations
+
 import asyncio
 
 import sqlalchemy
-from sqlalchemy.orm import Session
+from sqlalchemy import Table as _Table
+from sqlalchemy.orm import Session, DeclarativeBase
+from sqlalchemy.ext.declarative import declarative_base
+
 
 from .engine import Engine
 
@@ -18,10 +22,12 @@ def connect(db_type: str,
     return cm.add_connection(db_type=db_type, db_name=db_name, dsn=dsn,
                              username=username, password=password, host=host, port=port)
 
-
 class Connection:
 
     session: Session | None
+    metadata: sqlalchemy.MetaData
+    tables: dict
+    base: DeclarativeBase
 
     def __init__(self, db_type: str, db_name: str, dsn: str, username: str, password: str, host: str, port: int):
         self.id = self._conn_id(db_type, db_name)
@@ -33,6 +39,8 @@ class Connection:
         self.session = None
         self.metadata = sqlalchemy.MetaData()
         self.metadata.reflect(bind=self.engine)
+        self.tables = self.metadata.tables
+        self.base = DeclarativeBase()
 
     def __repr__(self):
         return f"<Connection(db_type={self.db_type}, db_name={self.db_name}, engine={self.engine})>"
@@ -87,6 +95,11 @@ class Connection:
         """Returns a Cursor object."""
         return Cursor(self.engine)
 
+    def delete(self, whereclause=None, **kwargs):
+        return sqlalchemy.delete(self, whereclause, **kwargs)
+    
+    def create_table(self, name, *args, **kwargs):
+        return Table(name, self, *args, **kwargs)
 
 class Cursor:
     def __init__(self, engine: sqlalchemy.engine.Engine):
@@ -148,6 +161,21 @@ class Cursor:
         return self.cursor.setoutputsize(size, column)
 
 
+class Table(_Table):
+    def __init__(self, name, connection: Connection, *args, **kwargs):
+        super().__init__(name, connection.metadata, *args, **kwargs)
+        self.connection = connection
+        connection.metadata.tables[name] = self
+
+    def create(self):
+        """Crée la table dans la base de données."""
+        self.create(bind=self.connection.engine)
+
+    def drop(self):
+        """Supprime la table de la base de données."""
+        self.drop(bind=self.connection.engine)
+
+
 class _ConnectionManager:
     _instance = None
     _connections: dict
@@ -178,8 +206,6 @@ class _ConnectionManager:
         """Returns all the stored connections."""
         for conn in self._connections.values():
             yield conn
-    
 
 
-def ConnectionManager():
-    return _ConnectionManager()
+ConnectionManager = _ConnectionManager
