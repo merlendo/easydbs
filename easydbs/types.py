@@ -1,36 +1,33 @@
-import time as py_time  # to avoid conflict with `time` module
-from datetime import date, datetime, time
+import datetime
+import time
+from sqlalchemy import Integer, Float, String, DateTime
+from typing import Any
+
+# Most of the code is stolen from https://github.com/apache/arrow-adbc/blob/main/python/adbc_driver_manager/adbc_driver_manager/dbapi.py
+
+# Types for the DB-API 2.0 specification
+#: The type for date values.
+Date = datetime.date
+#: The type for time values.
+Time = datetime.time
+#: The type for timestamp values.
+Timestamp = datetime.datetime
 
 
-def Date(year, month, day):
-    """Constructs an object holding a date value."""
-    return date(year, month, day)
+def DateFromTicks(ticks: int) -> Date:
+    """Construct a date value from a count of seconds."""
+    # Standard implementations from PEP 249 itself
+    return Date(*time.localtime(ticks)[:3])
 
 
-def Time(hour, minute, second):
-    """Constructs an object holding a time value."""
-    return time(hour, minute, second)
+def TimeFromTicks(ticks: int) -> Time:
+    """Construct a time value from a count of seconds."""
+    return Time(*time.localtime(ticks)[3:6])
 
 
-def Timestamp(year, month, day, hour, minute, second):
-    """Constructs an object holding a timestamp value."""
-    return datetime(year, month, day, hour, minute, second)
-
-
-def DateFromTicks(ticks):
-    """Constructs a date object from the given ticks value."""
-    return date.fromtimestamp(ticks)
-
-
-def TimeFromTicks(ticks):
-    """Constructs a time object from the given ticks value."""
-    dt = datetime.fromtimestamp(ticks)
-    return dt.time()
-
-
-def TimestampFromTicks(ticks):
-    """Constructs a timestamp object from the given ticks value."""
-    return datetime.fromtimestamp(ticks)
+def TimestampFromTicks(ticks: int) -> Timestamp:
+    """Construct a timestamp value from a count of seconds."""
+    return Timestamp(*time.localtime(ticks)[:6])
 
 
 class Binary:
@@ -42,45 +39,34 @@ class Binary:
         self.value = string
 
     def __repr__(self):
-        return f"Binary({self.value})"
+        return f"Binary({self.value!r})"
 
     def __eq__(self, other):
         return isinstance(other, Binary) and self.value == other.value
+    
+class _TypeSet(frozenset):
+    """A set of SQLAlchemy type IDs that compares equal to subsets of self."""
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, _TypeSet):
+            return not (other - self)
+        elif isinstance(other, type):  # ici on vérifie si c'est une classe de type SQLAlchemy
+            return other in self
+        return False
 
 
-class DBType:
-    """Base class for type objects."""
-    pass
+# PEP 249 type constants
+DATETIME = _TypeSet(
+    [
+        DateTime,  
+    ]
+)
+NUMBER = _TypeSet(
+    [
+        Integer,  
+        Float,    
+    ]
+)
+ROWID = _TypeSet([Integer])  
+STRING = _TypeSet([String])  
 
-
-class STRING(DBType):
-    """Type for string-based columns."""
-    pass
-
-
-class BINARY(DBType):
-    """Type for binary (long) columns."""
-    pass
-
-
-class NUMBER(DBType):
-    """Type for numeric columns."""
-    pass
-
-
-class DATETIME(DBType):
-    """Type for date/time columns."""
-    pass
-
-
-class ROWID(DBType):
-    """Type for row ID columns."""
-    pass
-
-
-# Singletons for type objects
-STRING = STRING()
-BINARY = BINARY()
-NUMBER = NUMBER()
-DATETIME = DATETIME()
-ROWID = ROWID()
