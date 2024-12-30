@@ -1,5 +1,6 @@
 from .config_manager import ConfigManager
-from .connection import ConnectionManager, connect
+from .dbapi import ConnectionManager, connect
+from .types import *
 
 # Global constants for the database module
 
@@ -11,7 +12,7 @@ apilevel = "2.0"
 # 1: Threads may share the module, but not connections.
 # 2: Threads may share the module and connections.
 # 3: Threads may share the module, connections, and cursors.
-threadsafety = 0
+threadsafety = 1
 
 # Parameter style
 paramstyle = 'qmark'  # Question mark style, e.g., ...WHERE name=?
