@@ -2,52 +2,159 @@ from __future__ import annotations
 
 import asyncio
 
+from enum import Enum
+from typing import Any, Optional, overload
+from urllib.parse import parse_qs, urlencode
+from sqlmodel import Session, select
 import sqlalchemy
 from sqlalchemy import Table as _Table
-from sqlalchemy.orm import Session, DeclarativeBase
-from sqlalchemy.ext.declarative import declarative_base
-
+from sqlalchemy.ext.automap import automap_base
 
 from .engine import Engine
 
 
-def connect(db_type: str,
-            db_name: str,
-            dsn: str | None = None,
-            username: str | None = None,
-            password: str | None = None,
-            host: str | None = None,
-            port: int | None = None) -> Connection:
+class DBDriver(Enum):
+    SQLITE = "sqlite"
+    MYSQL = "mysql+pymysql"
+    POSTGRE = "postgresql+psycopg2"
+    DUCKDB = "duckdb"
+    MSSQL = "mssql+pyodbc"
+    MARIADB = "mysql+pymysql"
+
+
+def connect(
+    db_type: DBDriver,
+    connection_string: Optional[str] = None,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    host: Optional[str] = None,
+    port: Optional[str] = None,
+    database: Optional[str] = None,
+    query: Optional[dict] = None,
+) -> Connection:
     cm = ConnectionManager()
-    return cm.add_connection(db_type=db_type, db_name=db_name, dsn=dsn,
-                             username=username, password=password, host=host, port=port)
+    return cm.add_connection(
+        db_type=db_type,
+        connection_string=connection_string,
+        username=username,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+        query=query,
+    )
 
-class Connection:
 
-    session: Session | None
-    metadata: sqlalchemy.MetaData
-    tables: dict
-    base: DeclarativeBase
+class SQLAlchemyDatabase:
+    connection_string: sqlalchemy.engine.url.URL
 
-    def __init__(self, db_type: str, db_name: str, dsn: str, username: str, password: str, host: str, port: int):
-        self.id = self._conn_id(db_type, db_name)
+    @overload
+    def __init__(self, connection_string: str): ...
+
+    @overload
+    def __init__(
+        self,
+        drivername: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        database: Optional[str] = None,
+        **kwargs: Any,
+    ): ...
+
+    def __init__(
+        self,
+        connection_string: Optional[str] = None,
+        drivername: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        database: Optional[str] = None,
+        query: Optional[dict] = None,
+    ):
+        """
+        Init SQLAlchemyDatabase. Can take a complete connection url, or argument
+        to build the url.
+        """
+        if connection_string:
+            self.connection_string = sqlalchemy.engine.url.make_url(connection_string)
+        else:
+            if not drivername:
+                raise ValueError(
+                    "The parameter 'drivername' is required if 'connection_string' is not set."
+                )
+            self.drivername = drivername
+            self.username = username
+            self.password = password
+            self.host = host
+            self.port = port
+            self.database = database
+            self.query = query
+            self.connection_string = sqlalchemy.URL.create(
+                drivername=self.drivername,
+                username=self.username,
+                password=self.password,
+                host=self.host,
+                port=self.port,
+                database=self.database,
+                query=self.query,
+            )
+
+        self.engine = sqlalchemy.create_engine(self.connection_string)
+
+
+class Connection(SQLAlchemyDatabase):
+    @overload
+    def __init__(self, db_type: str, connection_string: str) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        db_type: DBDriver,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        database: Optional[str] = None,
+        **kwargs: Any,
+    ): ...
+
+    def __init__(
+        self,
+        db_type: DBDriver,
+        connection_string: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        database: Optional[str] = None,
+        query: Optional[dict] = None,
+    ):
         self.db_type = db_type
-        self.db_name = db_name
-        self.dsn = dsn
-        self.engine = Engine(db_type, db_name=db_name, dsn=dsn, username=username,
-                             password=password, host=host, port=port).create()
-        self.session = None
-        self.metadata = sqlalchemy.MetaData()
-        self.metadata.reflect(bind=self.engine)
-        self.tables = self.metadata.tables
-        self.base = DeclarativeBase()
+        if connection_string:
+            self.id = connection_string
+        else:
+            self.id = f"{db_type}+{database}"
+        super().__init__(
+            connection_string=connection_string,
+            drivername=db_type.value,
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
+            query=query,
+        )
 
     def __repr__(self):
-        return f"<Connection(db_type={self.db_type}, db_name={self.db_name}, engine={self.engine})>"
+        return f"<Connection(db_type={self.db_type}, db_name={self.database}, engine={self.engine})>"
 
     def __call__(self, func):
         """Decorator to manage sessions for both sync and async functions."""
         if asyncio.iscoroutinefunction(func):
+
             async def async_wrapped(*args, **kwargs):
                 cursor = self.cursor()
                 print(f"[{self.id}] - Creating cursor for {func.__name__}")
@@ -57,8 +164,10 @@ class Connection:
                     cursor.close()
                 print(f"[{self.id}] - Closing cursor for {func.__name__}")
                 return result
+
             return async_wrapped
         else:
+
             def sync_wrapped(*args, **kwargs):
                 cursor = self.cursor()
                 print(f"[{self.id}] - Creating cursor for {func.__name__}")
@@ -68,14 +177,12 @@ class Connection:
                     cursor.close()
                 print(f"[{self.id}] - Closing cursor for {func.__name__}")
                 return result
-            return sync_wrapped
 
-    def _conn_id(self, db_type: str, db_name: str):
-        return f'{db_type}+{db_name}'
+            return sync_wrapped
 
     def connect(self):
         """Connects and returns the connection object."""
-        return self.engine.connect()
+        return self.raw_connection
 
     def close(self):
         """Disposes the engine and closes the connection."""
@@ -83,36 +190,52 @@ class Connection:
 
     def commit(self):
         """Commits the current transaction."""
-        if self.session:
-            self.session.commit()
-
-    def rollback(self):
-        """Rolls back the current transaction."""
-        if self.session:
-            self.session.rollback()
+        return self.raw_connection.commit()
 
     def cursor(self) -> Cursor:
         """Returns a Cursor object."""
-        return Cursor(self.engine)
+        return Cursor(self)
 
-    def delete(self, whereclause=None, **kwargs):
-        return sqlalchemy.delete(self, whereclause, **kwargs)
-    
-    def create_table(self, name, *args, **kwargs):
-        return Table(name, self, *args, **kwargs)
+    def rollback(self):
+        """Rolls back the current transaction."""
+        return self.raw_connection.rollback()
+
+    def session(self) -> Session:
+        def wrapper(callable):
+            def _wrap(q, *args, **kwargs):
+                if isinstance(q, str):
+                    q = sqlalchemy.text(q)
+                return callable(q, *args, **kwargs)
+
+            return _wrap
+
+        session = Session(self.engine)
+        session.exec = wrapper(session.exec)
+        return session
+
 
 class Cursor:
-    def __init__(self, engine: sqlalchemy.engine.Engine):
-        self.engine = engine
-        self.cursor = self._cursor()
+    def __init__(self, connection: Connection):
+        self.connection = connection
         self.rowcount = self.cursor.rowcount
         self.description = self.cursor.description
+        self.session = None
+
+    def __enter__(self):
+        self.session = self.connection.sessionmaker()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.session.commit()
+        self.session.close()
+        self.close()
 
     def __repr__(self):
         return f"<{self.__class__.__module__}.{self.__class__.__qualname__} object at {hex(id(self))} @alias {self.cursor.__repr__().strip('<>')}>"
 
-    def _cursor(self):
-        with self.engine.connect() as connection:
+    @property
+    def cursor(self):
+        with self.connection.engine.connect() as connection:
             raw_connection = connection.connection
             cursor = raw_connection.cursor()
         return cursor
@@ -161,51 +284,53 @@ class Cursor:
         return self.cursor.setoutputsize(size, column)
 
 
-class Table(_Table):
-    def __init__(self, name, connection: Connection, *args, **kwargs):
-        super().__init__(name, connection.metadata, *args, **kwargs)
-        self.connection = connection
-        connection.metadata.tables[name] = self
-
-    def create(self):
-        """Crée la table dans la base de données."""
-        self.create(bind=self.connection.engine)
-
-    def drop(self):
-        """Supprime la table de la base de données."""
-        self.drop(bind=self.connection.engine)
-
-
-class _ConnectionManager:
+class ConnectionManager:
     _instance = None
-    _connections: dict
+    _connections: dict[str, Connection]
 
     def __new__(cls, *args, **kwargs):
+        """
+        Singleton instance creation for ConnectionManager.
+
+        """
         if not cls._instance:
             cls._instance = super().__new__(cls, *args, **kwargs)
             cls._instance._connections = {}
         return cls._instance
 
     def __init__(self):
+        """
+        Initialize ConnectionManager.
+        """
         pass
 
-    def add_connection(self,
-                       db_type: str,
-                       db_name: str | None = None,
-                       dsn: str | None = None,
-                       username: str | None = None,
-                       password: str | None = None,
-                       host: str | None = None,
-                       port: int | None = None):
-        conn = Connection(db_type=db_type, db_name=db_name, dsn=dsn,
-                          username=username, password=password, host=host, port=port)
+    def __getitem__(self, index) -> Connection | None:
+        try:
+            return self._connections[index]
+        except KeyError:
+            print(f"No connection for the index '{index}'.")
+            return None
+
+    def add_connection(self, db_type: DBDriver, **args_connection: Any) -> Connection:
+        conn = Connection(db_type, **args_connection)
         self._connections[conn.id] = conn
         return self._connections[conn.id]
 
     def connections(self):
-        """Returns all the stored connections."""
+        """Yield the stored connections."""
         for conn in self._connections.values():
             yield conn
 
+    def close(self, name: str, *args, **kwargs):
+        """
+        Close the connection to the specified database.
+        """
+        self[name].close(*args, **kwargs)
+        del self._connections[name]
 
-ConnectionManager = _ConnectionManager
+    def closeall(self):
+        """
+        Close all open connections.
+        """
+        for name in self.connections():
+            self.close(name)

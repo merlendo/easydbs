@@ -4,3 +4,4 @@ sqlalchemy
 psycopg2
 pymysql
 pyodbc
+sqlmodel
