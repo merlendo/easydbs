@@ -1,5 +1,4 @@
 from .dbapi import ConnectionManager, DBDriver, connect
-from .types import *
 
 # Global constants for the database module
 SQLITE = DBDriver.SQLITE

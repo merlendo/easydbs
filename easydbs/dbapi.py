@@ -19,7 +19,7 @@ class DBDriver(Enum):
 
 
 def connect(
-    db_type: DBDriver,
+    db_type: Optional[DBDriver] = None,
     connection_string: Optional[str] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
@@ -77,6 +77,14 @@ class SQLAlchemyDatabase:
         if connection_string:
             self.connection_string = sqlalchemy.engine.url.make_url(
                 connection_string)
+            self.engine = sqlmodel.create_engine(self.connection_string)
+            self.drivername = drivername
+            self.username = self.engine.url.username
+            self.password = self.engine.url.password
+            self.host = self.engine.url.host
+            self.port = self.engine.url.port
+            self.database = self.engine.url.database
+            self.query = self.engine.url.query
         else:
             drivername, username, password, host, port, database, query = self._check_params_connection(
                 drivername, username, password, host, port, database, query
@@ -89,7 +97,7 @@ class SQLAlchemyDatabase:
             self.database = database
             self.query = query
             self.connection_string = sqlalchemy.URL.create(
-                drivername=self.drivername,
+                drivername=self.drivername.value,
                 username=self.username,
                 password=self.password,
                 host=self.host,
@@ -97,9 +105,10 @@ class SQLAlchemyDatabase:
                 database=self.database,
                 query=self.query,
             )
-        self.engine = sqlmodel.create_engine(self.connection_string)
+            self.engine = sqlmodel.create_engine(self.connection_string)
 
     def _check_params_connection(
+            self,
             drivername: Optional[str] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
@@ -156,7 +165,7 @@ class Connection(SQLAlchemyDatabase):
             self.id = f"{db_type}+{database}"
         super().__init__(
             connection_string=connection_string,
-            drivername=db_type.value,
+            drivername=db_type,
             username=username,
             password=password,
             host=host,
@@ -263,7 +272,7 @@ class ConnectionManager:
             print(f"No connection for the index '{index}'.")
             return None
 
-    def add_connection(self, db_type: DBDriver, **args_connection: Any) -> Connection:
+    def add_connection(self, db_type: Optional[DBDriver] = None, **args_connection: Any) -> Connection:
         """Add connection to to the connection manager."""
         conn = Connection(db_type, **args_connection)
         self._connections[conn.id] = conn
