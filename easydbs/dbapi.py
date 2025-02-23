@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-
 from enum import Enum
 from typing import Any, Optional, overload
-from urllib.parse import parse_qs, urlencode
-from sqlmodel import Session, select
-import sqlalchemy
-from sqlalchemy import Table as _Table
-from sqlalchemy.ext.automap import automap_base
 
-from .engine import Engine
+import sqlalchemy
+import sqlmodel
+from sqlmodel import Session
 
 
 class DBDriver(Enum):
@@ -79,12 +75,12 @@ class SQLAlchemyDatabase:
         to build the url.
         """
         if connection_string:
-            self.connection_string = sqlalchemy.engine.url.make_url(connection_string)
+            self.connection_string = sqlalchemy.engine.url.make_url(
+                connection_string)
         else:
-            if not drivername:
-                raise ValueError(
-                    "The parameter 'drivername' is required if 'connection_string' is not set."
-                )
+            drivername, username, password, host, port, database, query = self._check_params_connection(
+                drivername, username, password, host, port, database, query
+            )
             self.drivername = drivername
             self.username = username
             self.password = password
@@ -101,8 +97,29 @@ class SQLAlchemyDatabase:
                 database=self.database,
                 query=self.query,
             )
+        self.engine = sqlmodel.create_engine(self.connection_string)
 
-        self.engine = sqlalchemy.create_engine(self.connection_string)
+    def _check_params_connection(
+            drivername: Optional[str] = None,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+            host: Optional[str] = None,
+            port: Optional[str] = None,
+            database: Optional[str] = None,
+            query: Optional[dict] = None):
+        if not drivername:
+            raise ValueError(
+                "The parameter 'drivername' is required if 'connection_string' is not set."
+            )
+        if drivername == DBDriver.SQLITE:
+            password = None
+            host = None
+            query = None
+        elif drivername == DBDriver.MSSQL:
+            if not query:
+                raise ValueError(
+                    "The version of the ODBC driver is required for SqlServer connection. (e.g. {'driver': 'ODBC Driver 18 for SQL Server'})")
+        return drivername, username, password, host, port, database, query
 
 
 class Connection(SQLAlchemyDatabase):
@@ -147,6 +164,7 @@ class Connection(SQLAlchemyDatabase):
             database=database,
             query=query,
         )
+        self._raw_connection = self.engine.raw_connection()
 
     def __repr__(self):
         return f"<Connection(db_type={self.db_type}, db_name={self.database}, engine={self.engine})>"
@@ -156,33 +174,34 @@ class Connection(SQLAlchemyDatabase):
         if asyncio.iscoroutinefunction(func):
 
             async def async_wrapped(*args, **kwargs):
-                cursor = self.cursor()
-                print(f"[{self.id}] - Creating cursor for {func.__name__}")
+                session = self.session()
+                print(f"[{self.id}] - Creating session for {func.__name__}")
                 try:
-                    result = await func(cursor, *args, **kwargs)
+                    result = await func(session, *args, **kwargs)
                 finally:
-                    cursor.close()
-                print(f"[{self.id}] - Closing cursor for {func.__name__}")
+                    session.close()
+                print(f"[{self.id}] - Closing session for {func.__name__}")
                 return result
 
             return async_wrapped
+
         else:
 
             def sync_wrapped(*args, **kwargs):
-                cursor = self.cursor()
-                print(f"[{self.id}] - Creating cursor for {func.__name__}")
+                session = self.session()
+                print(f"[{self.id}] - Creating session for {func.__name__}")
                 try:
-                    result = func(cursor, *args, **kwargs)
+                    result = func(session, *args, **kwargs)
                 finally:
-                    cursor.close()
-                print(f"[{self.id}] - Closing cursor for {func.__name__}")
+                    session.close()
+                print(f"[{self.id}] - Closing session for {func.__name__}")
                 return result
 
             return sync_wrapped
 
     def connect(self):
         """Connects and returns the connection object."""
-        return self.raw_connection
+        return self._raw_connection
 
     def close(self):
         """Disposes the engine and closes the connection."""
@@ -190,18 +209,22 @@ class Connection(SQLAlchemyDatabase):
 
     def commit(self):
         """Commits the current transaction."""
-        return self.raw_connection.commit()
+        return self._raw_connection.commit()
 
-    def cursor(self) -> Cursor:
+    def cursor(self):
         """Returns a Cursor object."""
-        return Cursor(self)
+        return self._raw_connection.cursor()
 
     def rollback(self):
         """Rolls back the current transaction."""
-        return self.raw_connection.rollback()
+        return self._raw_connection.rollback()
 
     def session(self) -> Session:
+        """Return a sqlmodel (or sqlalchemy) session."""
+
         def wrapper(callable):
+            """Wrap the exec function to use text for sql query."""
+
             def _wrap(q, *args, **kwargs):
                 if isinstance(q, str):
                     q = sqlalchemy.text(q)
@@ -214,76 +237,6 @@ class Connection(SQLAlchemyDatabase):
         return session
 
 
-class Cursor:
-    def __init__(self, connection: Connection):
-        self.connection = connection
-        self.rowcount = self.cursor.rowcount
-        self.description = self.cursor.description
-        self.session = None
-
-    def __enter__(self):
-        self.session = self.connection.sessionmaker()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.session.commit()
-        self.session.close()
-        self.close()
-
-    def __repr__(self):
-        return f"<{self.__class__.__module__}.{self.__class__.__qualname__} object at {hex(id(self))} @alias {self.cursor.__repr__().strip('<>')}>"
-
-    @property
-    def cursor(self):
-        with self.connection.engine.connect() as connection:
-            raw_connection = connection.connection
-            cursor = raw_connection.cursor()
-        return cursor
-
-    def callproc(self, procname, **parameters):
-        """Not implemented, could execute a stored procedure."""
-        return self.cursor.callproc(procname, parameters)
-
-    def close(self):
-        return self.cursor.close()
-
-    def execute(self, operation, parameters=[]):
-        """Executes a single operation with the provided parameters."""
-        return self.cursor.execute(operation, parameters)
-
-    def executemany(self, operation, seq_parameters):
-        """Executes the same operation with a sequence of parameters."""
-        return self.cursor.executemany(operation, seq_parameters)
-
-    def fetchone(self):
-        """Fetches the next row of a query result set."""
-        return self.cursor.fetchone()
-
-    def fetchmany(self, size):
-        """Fetches the next set of `size` rows of a query result."""
-        return self.cursor.fetchmany(size)
-
-    def fetchall(self):
-        """Fetches all rows of a query result."""
-        return self.cursor.fetchall()
-
-    def nextset(self):
-        """Moves to the next result set in a multi-query execution."""
-        return self.cursor.nextset()
-
-    def arraysize(self):
-        """Gets/sets the number of rows to fetch at once."""
-        return self.rowcount
-
-    def setinputsizes(self, sizes):
-        """Sets the input sizes for the query parameters."""
-        return self.cursor.setinputsizes(sizes)
-
-    def setoutputsize(self, size, column=None):
-        """Sets the output size for columns."""
-        return self.cursor.setoutputsize(size, column)
-
-
 class ConnectionManager:
     _instance = None
     _connections: dict[str, Connection]
@@ -291,7 +244,6 @@ class ConnectionManager:
     def __new__(cls, *args, **kwargs):
         """
         Singleton instance creation for ConnectionManager.
-
         """
         if not cls._instance:
             cls._instance = super().__new__(cls, *args, **kwargs)
@@ -312,6 +264,7 @@ class ConnectionManager:
             return None
 
     def add_connection(self, db_type: DBDriver, **args_connection: Any) -> Connection:
+        """Add connection to to the connection manager."""
         conn = Connection(db_type, **args_connection)
         self._connections[conn.id] = conn
         return self._connections[conn.id]

@@ -1,8 +1,13 @@
-from .config_manager import ConfigManager
-from .dbapi import ConnectionManager, connect
+from .dbapi import ConnectionManager, DBDriver, connect
 from .types import *
 
 # Global constants for the database module
+SQLITE = DBDriver.SQLITE
+MYSQL = DBDriver.MYSQL
+POSTGRE = DBDriver.POSTGRE
+DUCKDB = DBDriver.DUCKDB
+MSSQL = DBDriver.MSSQL
+MARIADB = DBDriver.MARIADB
 
 # DB API level supported
 apilevel = "2.0"
@@ -15,4 +20,4 @@ apilevel = "2.0"
 threadsafety = 1
 
 # Parameter style
-paramstyle = 'qmark'  # Question mark style, e.g., ...WHERE name=?
+paramstyle = "qmark"  # Question mark style, e.g., ...WHERE name=?
