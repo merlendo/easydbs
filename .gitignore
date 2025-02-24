@@ -2,7 +2,6 @@
 .env
 tmp/
 **/__pycache__
-**/*.ini
 *.db
 .DS_Store
 .pytest_cache

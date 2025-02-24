@@ -6,7 +6,7 @@ from typing import Any, Optional, overload
 
 import sqlalchemy
 import sqlmodel
-from sqlmodel import Session
+from sqlmodel import Session, SQLModel
 
 
 class DBDriver(Enum):
@@ -184,12 +184,10 @@ class Connection(SQLAlchemyDatabase):
 
             async def async_wrapped(*args, **kwargs):
                 session = self.session()
-                print(f"[{self.id}] - Creating session for {func.__name__}")
                 try:
                     result = await func(session, *args, **kwargs)
                 finally:
                     session.close()
-                print(f"[{self.id}] - Closing session for {func.__name__}")
                 return result
 
             return async_wrapped
@@ -244,6 +242,10 @@ class Connection(SQLAlchemyDatabase):
         session = Session(self.engine)
         session.exec = wrapper(session.exec)
         return session
+    
+    def create_tables(self):
+        SQLModel.metadata.create_all(self.engine)
+
 
 
 class ConnectionManager:

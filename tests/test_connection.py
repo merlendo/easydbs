@@ -6,6 +6,8 @@ CONNECTION_STRING = {
     "postgresql": "postgresql://testuser:testpassword@localhost:5433/testdb",
     "mysql": "mysql+pymysql://testuser:testpassword@localhost:3306/testdb",
     "mariadb": "mysql+pymysql://testuser:testpassword@localhost:3307/testdb",
+    "sqlite": "sqlite:///:memory:",
+    "duckdb": "duckdb:///:memory:",
 }
 
 DATABASES = [
