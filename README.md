@@ -42,11 +42,21 @@ sqlite = easydbs.connect(easydbs.SQLITE, database="app.db")
 
 @sqlite
 def insert_hero(session: Session, hero: Hero):
-    session.add(Hero)
+    session.add(hero)
     session.commit()
 
 hero = Hero(id=1, name="Peter Parker", secret_name="Spiderman")
 insert_hero(hero)
+```
+
+## Create tables
+```python
+import easydbs
+
+sqlite = easydbs.connect(easydbs.SQLITE, database="app.db")
+
+sqlite.create_tables(tables_names=["hero"]) # Create hero tables if not exists.
+sqlite.create_tables() # Create all tables defined in SQLModel.
 ```
 
 ## Multiple connections
@@ -58,17 +68,20 @@ import easydbs
 
 cm = easydbs.ConnectionManager()
 
-easydbs.connect(db_type=easydbs.SQLITE, db_name= 'app.db')
-easydbs.connect(db_type=easydbs.MSSQL,
-                  database="my_mssql_database",
-                  username="username",
-                  password="password",
-                  host="localhost",
-                  port="1433"
-                  query={"driver": "ODBC Driver 18 for SQL Server"})
+easydbs.connect(db_type=easydbs.SQLITE, database= 'app.db')
+easydbs.connect(
+    db_type=easydbs.MYSQL,
+    username="testuser",
+    password="testpassword",
+    host="localhost",
+    port=3306,
+    database="testdb",
+)
 
 for conn in cm.connections():
+    conn.create_tables(tables_names=["hero"])
     with conn.session() as session:
+        hero = Hero(name="Peter Parker", secret_name="Spiderman")
         session.add(hero)
         session.commit()
 ```
