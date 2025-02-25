@@ -75,8 +75,7 @@ class SQLAlchemyDatabase:
         to build the url.
         """
         if connection_string:
-            self.connection_string = sqlalchemy.engine.url.make_url(
-                connection_string)
+            self.connection_string = sqlalchemy.engine.url.make_url(connection_string)
             self.engine = sqlmodel.create_engine(self.connection_string)
             self.drivername = drivername
             self.username = self.engine.url.username
@@ -86,8 +85,10 @@ class SQLAlchemyDatabase:
             self.database = self.engine.url.database
             self.query = self.engine.url.query
         else:
-            drivername, username, password, host, port, database, query = self._check_params_connection(
-                drivername, username, password, host, port, database, query
+            drivername, username, password, host, port, database, query = (
+                self._check_params_connection(
+                    drivername, username, password, host, port, database, query
+                )
             )
             self.drivername = drivername
             self.username = username
@@ -108,14 +109,15 @@ class SQLAlchemyDatabase:
             self.engine = sqlmodel.create_engine(self.connection_string)
 
     def _check_params_connection(
-            self,
-            drivername: Optional[str] = None,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            host: Optional[str] = None,
-            port: Optional[str] = None,
-            database: Optional[str] = None,
-            query: Optional[dict] = None):
+        self,
+        drivername: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        database: Optional[str] = None,
+        query: Optional[dict] = None,
+    ):
         if not drivername:
             raise ValueError(
                 "The parameter 'drivername' is required if 'connection_string' is not set."
@@ -127,7 +129,8 @@ class SQLAlchemyDatabase:
         elif drivername == DBDriver.MSSQL:
             if not query:
                 raise ValueError(
-                    "The version of the ODBC driver is required for SqlServer connection. (e.g. {'driver': 'ODBC Driver 18 for SQL Server'})")
+                    "The version of the ODBC driver is required for SqlServer connection. (e.g. {'driver': 'ODBC Driver 18 for SQL Server'})"
+                )
         return drivername, username, password, host, port, database, query
 
 
@@ -196,12 +199,10 @@ class Connection(SQLAlchemyDatabase):
 
             def sync_wrapped(*args, **kwargs):
                 session = self.session()
-                print(f"[{self.id}] - Creating session for {func.__name__}")
                 try:
                     result = func(session, *args, **kwargs)
                 finally:
                     session.close()
-                print(f"[{self.id}] - Closing session for {func.__name__}")
                 return result
 
             return sync_wrapped
@@ -242,9 +243,18 @@ class Connection(SQLAlchemyDatabase):
         session = Session(self.engine)
         session.exec = wrapper(session.exec)
         return session
-    
-    def create_tables(self):
-        SQLModel.metadata.create_all(self.engine)
+
+    def create_tables(self, tables_names: list[str] | None = None):
+        """Create a list of tables of all tables in the SQLModel."""
+        if tables_names:
+            tables = [
+                SQLModel.metadata.tables.get(table)
+                for table in tables_names
+                if SQLModel.metadata.tables.get(table) is not None
+            ]
+            SQLModel.metadata.create_all(self.engine, tables=tables)
+        else:
+            SQLModel.metadata.create_all(self.engine)
 
 
 
@@ -274,7 +284,9 @@ class ConnectionManager:
             print(f"No connection for the index '{index}'.")
             return None
 
-    def add_connection(self, db_type: Optional[DBDriver] = None, **args_connection: Any) -> Connection:
+    def add_connection(
+        self, db_type: Optional[DBDriver] = None, **args_connection: Any
+    ) -> Connection:
         """Add connection to to the connection manager."""
         conn = Connection(db_type, **args_connection)
         self._connections[conn.id] = conn

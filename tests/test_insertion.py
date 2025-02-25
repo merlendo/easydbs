@@ -1,9 +1,10 @@
-import pytest
 import easydbs
-from sqlmodel import Session, select, SQLModel, Field, insert
+from sqlmodel import Session, select, SQLModel, Field
 
 
 class Hero(SQLModel, table=True):
+    __tablename__ = "hero"
+    __table_args__ = {'extend_existing': True}
     id: int | None = Field(default=None, primary_key=True)
     name: str
     secret_name: str
