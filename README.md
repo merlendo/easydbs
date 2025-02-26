@@ -49,6 +49,20 @@ hero = Hero(id=1, name="Peter Parker", secret_name="Spiderman")
 insert_hero(hero)
 ```
 
+## Connect to the database with arguments or sqlalchemy connection string
+```python
+import easydbs
+postgre = easydbs.connect(
+    db_type=easydbs.POSTGRE,
+    username="testuser",
+    password="testpassword",
+    host="localhost",
+    port=5433,
+    database="testdb",
+)
+postgre = easydbs.connect(connection_string="postgresql://testuser:testpassword@localhost:5433/testdb")
+```
+
 ## Create tables
 ```python
 import easydbs
@@ -86,6 +100,13 @@ for conn in cm.connections():
         session.commit()
 ```
 
+## Access to connections like a dictionnary.
+When you create a connection an id is created with `{backend_name}+{database}`.
+```python
+cm["sqlite+app.db"]
+cm["mysql+testdb"]
+```
+
 ## Use with pandas
 Because the connections are sqlalchemy connection, you can use them with pandas or polars.
 
@@ -95,17 +116,18 @@ import easydbs
 
 sqlite = easydbs.connect(easydbs.SQLITE, database="app.db")
 
-df = pd.read_sql('hero', engine=sqlite.engine)
+df = pd.read_sql('hero', con=sqlite.engine)
 ```
 
-## Use easydbs connections like an standard python database api.
+## Use easydbs connections like an standard python database api
 Like any pep249 complient python api. You can use methods like connect, cursor, commit, rollback etc...
 ```python
 import easydbs
 
 sqlite = easydbs.connect(easydbs.SQLITE, database="app.db")
-cursor = conn.cursor()
+cursor = sqlite.cursor()
 result = cursor.execute("INSERT INTO hero VALUES (2, 'Bruce Wayne', 'Batman')")
 sqlite.commit()
 sqlite.close()
 ```
+

@@ -162,10 +162,6 @@ class Connection(SQLAlchemyDatabase):
         query: Optional[dict] = None,
     ):
         self.db_type = db_type
-        if connection_string:
-            self.id = connection_string
-        else:
-            self.id = f"{db_type}+{database}"
         super().__init__(
             connection_string=connection_string,
             drivername=db_type,
@@ -177,6 +173,7 @@ class Connection(SQLAlchemyDatabase):
             query=query,
         )
         self._raw_connection = self.engine.raw_connection()
+        self.id = f"{self.connection_string.get_backend_name()}+{self.connection_string.database}"
 
     def __repr__(self):
         return f"<Connection(db_type={self.db_type}, db_name={self.database}, engine={self.engine})>"
