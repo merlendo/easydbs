@@ -31,12 +31,11 @@ services:
     ports:
       - "3307:3306"
 
-  # sqlserver:
-  #   image: mcr.microsoft.com/azure-sql-edge:latest
-  #   restart: always
-  #   environment:
-  #     ACCEPT_EULA: "Y"
-  #     SA_PASSWORD: "Strong!Passw0rd"
-  #   ports:
-  #     - "1433:1433"
-
+  sqlserver:
+      image: mcr.microsoft.com/mssql/server:latest
+      restart: always
+      environment:
+        ACCEPT_EULA: "Y"
+        SA_PASSWORD: "Strong!Passw0rd"
+      ports:
+        - "1433:1433"
