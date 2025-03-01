@@ -136,7 +136,7 @@ class SQLAlchemyDatabase:
 
 class Connection(SQLAlchemyDatabase):
     @overload
-    def __init__(self, db_type: str, connection_string: str) -> None: ...
+    def __init__(self, connection_string: str) -> None: ...
 
     @overload
     def __init__(
@@ -147,7 +147,7 @@ class Connection(SQLAlchemyDatabase):
         host: Optional[str] = None,
         port: Optional[str] = None,
         database: Optional[str] = None,
-        **kwargs: Any,
+        query: Optional[dict] = None,
     ): ...
 
     def __init__(
