@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "easydbs"
+version = "1.0.0"
+authors = [
+  { name="Ian Peysson"},
+]
+description = "Simple connection manager for sqlalchemy."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+keywords = ["database", "connection manager", "migration"]
+dependencies = [
+    "sqlalchemy >= 2.0.38",
+    "sqlmodel >= 0.0.22",
+]
+
+[project.optional-dependencies]
+mysql = ["pymysql"]
+mariadb = ["pymysql"]
+postgresql = ["psycopg2"]
+mssql = ["pyodbc"]
+duckdb = ["duckdb", "duckdb_engine"]
+all = ["pymysql", "psycopg2", "pyodbc", "duckdb", "duckdb_engine"]
+
+[project.urls]
+Homepage = "https://github.com/merlendo/easydbs"
+Issues = "https://github.com/merlendo/easydbs/issues"
