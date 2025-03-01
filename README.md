@@ -18,6 +18,23 @@ class Hero(SQLModel, table=True):
     secret_name: str  
 ```
 
+## Installation
+The default installation does not come with the additional dependencies for each database's driver.
+
+```bash
+pip install easydbs
+```
+
+Use pip optional dependencies to install the driver specific for the database.
+```bash
+pip install easydbs[duckdb]
+pip install easydbs[mariadb]
+pip install easydbs[mssql]
+pip install easydbs[mysql]
+pip install easydbs[postgresql]
+pip install easydbs[all]
+```
+
 Select all the rows of your table.
 ```python
 import easydbs
