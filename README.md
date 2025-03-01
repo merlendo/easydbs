@@ -1,13 +1,14 @@
 # easydbs
 Easydbs is a connection manager for people who are too lazy to learn sqlalchemy.  
-It's goal is to do simple interactions with relational database. (See Supported Databases.md).  
-This module is made for people that use sqlmodel in their fastapi application and want to manage several database connections. 
+Its goal is to do simple interactions with relational database. (See Supported Databases.md).  
+This module is made for people that use sqlmodel in their fastapi application and want to manage several database connections.  
+You can also use this module to simplifies migration between databases.  
 You can have connections to multiple databases and create a session using your connection as a python decorator.   
-Is this module usefull ? Not really, but it was created before knowing that sqlmodel existed. [Check it out](https://sqlmodel.tiangolo.com/).  
+Is this module useful ? Not really, but it was created before knowing that sqlmodel existed. [Check it out](https://sqlmodel.tiangolo.com/).  
 Easydbs tries also to be like any PEP249 complient database api. [Read more.](https://peps.python.org/pep-0249/)
 
 ## Basic usage
-Define the models of your table with sqlmodel.
+Define the model of your table with sqlmodel.
 ```python
 from sqlmodel import SQLModel, Field
 
@@ -17,7 +18,7 @@ class Hero(SQLModel, table=True):
     secret_name: str  
 ```
 
-Select all the row of your table.
+Select all the rows of your table.
 ```python
 import easydbs
 from sqlmodel import select
@@ -31,7 +32,7 @@ with sqlite.session() as session:
 
 ## Use the connection as a decorator
 You can use the connection object as a decorator.  
-You'll have to pass a session parameter that will be automaticaly close after the end of the function.
+You'll have to pass a session parameter that will be automatically close after the end of the function.
 This will work with sync and async functions.
 
 ```python
@@ -75,7 +76,7 @@ sqlite.create_tables() # Create all tables defined in SQLModel.
 
 ## Multiple connections
 We can easily manage several connections.  
-You can use the connection manager or use the function `easydbs.connect`. The connection will be automaticaly added to the connection manager.
+You can use the connection manager or use the function `easydbs.connect`. The connection will be automatically added to the connection manager.
 
 ```python
 import easydbs
