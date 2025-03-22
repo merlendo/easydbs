@@ -7,17 +7,6 @@ You can have connections to multiple databases and create a session using your c
 Is this module useful ? Not really, but it was created before knowing that sqlmodel existed. [Check it out](https://sqlmodel.tiangolo.com/).  
 Easydbs tries also to be like any PEP249 complient database api. [Read more.](https://peps.python.org/pep-0249/)
 
-## Basic usage
-Define the model of your table with sqlmodel.
-```python
-from sqlmodel import SQLModel, Field
-
-class Hero(SQLModel, table=True):  
-    id: int | None = Field(default=None, primary_key=True)  
-    name: str  
-    secret_name: str  
-```
-
 ## Installation
 The default installation does not come with the additional dependencies for each database's driver.
 
@@ -33,6 +22,17 @@ pip install easydbs[mssql]
 pip install easydbs[mysql]
 pip install easydbs[postgresql]
 pip install easydbs[all]
+```
+
+## Basic usage
+Define the model of your table with sqlmodel.
+```python
+from sqlmodel import SQLModel, Field
+
+class Hero(SQLModel, table=True):  
+    id: int | None = Field(default=None, primary_key=True)  
+    name: str  
+    secret_name: str  
 ```
 
 Select all the rows of your table.
