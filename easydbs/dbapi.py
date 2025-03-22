@@ -56,7 +56,7 @@ class SQLAlchemyDatabase:
         host: Optional[str] = None,
         port: Optional[str] = None,
         database: Optional[str] = None,
-        **kwargs: Any,
+        query: Optional[dict] = None
     ): ...
 
     def __init__(
